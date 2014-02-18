@@ -35,8 +35,8 @@ import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
 import org.everit.osgi.keystore.file.FileBasedKeyStoreComponent;
 import org.everit.osgi.keystore.file.PropertyName;
-import org.everit.osgi.service.javasecurity.JavaSecurityFactory;
 import org.osgi.framework.BundleContext;
+import org.osgi.framework.Constants;
 import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.service.cm.Configuration;
 import org.osgi.service.cm.ConfigurationAdmin;
@@ -49,8 +49,7 @@ public class ConfigurationInitComponent {
 
     private static final String KEY_STORE_TYPE = "BKS";
 
-    public static final String JAVA_SECURITY_FACTORY_TARGET_FILTER =
-            "(" + JavaSecurityFactory.PROVIDER_NAME + "=" + PROVIDER_NAME + ")";
+    private static final String PROVIDER_TARGET_FILTER = "(providerName=" + PROVIDER_NAME + ")";
 
     public static final String ALIAS = UUID.randomUUID().toString();
 
@@ -80,12 +79,18 @@ public class ConfigurationInitComponent {
     @Activate
     public void activate(final BundleContext bundleContext) throws Exception {
         try {
+
             Dictionary<String, Object> keyStoreProps = new Hashtable<String, Object>();
-            keyStoreProps.put(PropertyName.JAVA_SECURITY_FACTORY_TARGET, JAVA_SECURITY_FACTORY_TARGET_FILTER);
+            keyStoreProps.put(PropertyName.PROVIDER_TARGET, PROVIDER_TARGET_FILTER);
             keyStoreProps.put(PropertyName.KEY_STORE_URL, KEY_STORE_URL);
             keyStoreProps.put(PropertyName.KEY_STORE_TYPE, KEY_STORE_TYPE);
             keyStoreProps.put(PropertyName.KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
-            getOrCreateConfiguration(FileBasedKeyStoreComponent.class.getName(), keyStoreProps);
+            String keyStorePid = getOrCreateConfiguration(FileBasedKeyStoreComponent.class.getName(), keyStoreProps);
+
+            Dictionary<String, Object> keyStoreTestProps = new Hashtable<String, Object>();
+            keyStoreTestProps.put("keyStore.target", "(" + Constants.SERVICE_PID + "=" + keyStorePid + ")");
+            getOrCreateConfiguration(FileBasedKeyStoreTestComponent.class.getName(), keyStoreTestProps);
+
         } catch (IOException e) {
             throw new RuntimeException(e);
         } catch (InvalidSyntaxException e) {

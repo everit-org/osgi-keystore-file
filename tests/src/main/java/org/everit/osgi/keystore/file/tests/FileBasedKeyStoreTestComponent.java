@@ -31,6 +31,7 @@ import java.security.cert.Certificate;
 
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
+import org.apache.felix.scr.annotations.ConfigurationPolicy;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
@@ -38,15 +39,15 @@ import org.apache.felix.scr.annotations.Service;
 import org.junit.Assert;
 import org.junit.Test;
 
-@Component(name = "FileBasedKeyStoreTest", immediate = true)
+@Component(metatype = true, policy = ConfigurationPolicy.REQUIRE)
 @Properties({
         @Property(name = "eosgi.testEngine", value = "junit4"),
         @Property(name = "eosgi.testId", value = "FileBasedKeyStoreTestComponent"),
-        @Property(name = "keyStore.target", value = ConfigurationInitComponent.JAVA_SECURITY_FACTORY_TARGET_FILTER) })
+        @Property(name = "keyStore.target") })
 @Service(value = FileBasedKeyStoreTestComponent.class)
 public class FileBasedKeyStoreTestComponent {
 
-    private KeyPair expectedKeyPair = ConfigurationInitComponent.KEY_PAIR;
+    private final KeyPair expectedKeyPair = ConfigurationInitComponent.KEY_PAIR;
 
     @Reference
     private KeyStore keyStore;

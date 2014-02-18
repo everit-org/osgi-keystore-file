@@ -26,6 +26,7 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
 import java.security.Security;
@@ -40,7 +41,6 @@ import org.apache.felix.scr.annotations.Deactivate;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
-import org.everit.osgi.service.javasecurity.JavaSecurityFactory;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
 import org.osgi.framework.ServiceRegistration;
@@ -51,33 +51,25 @@ import org.osgi.service.cm.ConfigurationException;
  */
 @Component(metatype = true, configurationFactory = true, policy = ConfigurationPolicy.REQUIRE)
 @Properties({
-        @Property(name = PropertyName.JAVA_SECURITY_FACTORY_TARGET),
+        @Property(name = PropertyName.PROVIDER_TARGET),
         @Property(name = PropertyName.KEY_STORE_URL),
         @Property(name = PropertyName.KEY_STORE_TYPE),
         @Property(name = PropertyName.KEY_STORE_PASSWORD, passwordValue = "")
 })
 public class FileBasedKeyStoreComponent {
 
+    @Reference(bind = "bindProvider", unbind = "unbindProvider")
+    private Provider provider;
+
     /**
-     * A {@link JavaSecurityFactory} used to create the {@link KeyStore}.
+     * The properties of the {@link #provider} service.
      */
-    @Reference(bind = "bindJavaSecurityFactory", unbind = "unbindJavaSecurityFactory")
-    private JavaSecurityFactory javaSecurityFactory;
+    private Map<String, Object> providerServiceProperties;
 
     /**
      * The reference of the service registration.
      */
     private ServiceRegistration<KeyStore> keyStoreSR;
-
-    /**
-     * The properties of the {@link #javaSecurityFactory} service.
-     */
-    private Map<String, Object> javaSecurityFactoryProperties;
-
-    /**
-     * The provider of the {@link KeyStore}.
-     */
-    private Provider provider;
 
     /**
      * The activation method of the component. It registers the {@link KeyStore} as an OSGi service.
@@ -93,7 +85,6 @@ public class FileBasedKeyStoreComponent {
     @Activate
     public void activate(final BundleContext context, final Map<String, Object> componentProperties)
             throws ConfigurationException {
-
         String keyStoreUrl = getStringProperty(componentProperties, PropertyName.KEY_STORE_URL);
         String keyStoreType = getStringProperty(componentProperties, PropertyName.KEY_STORE_TYPE);
         String keyStorePassword = getStringProperty(componentProperties, PropertyName.KEY_STORE_PASSWORD);
@@ -107,9 +98,9 @@ public class FileBasedKeyStoreComponent {
             throw new ConfigurationException(null, "failed to load the keystore", e);
         }
         try (InputStream inputStream = url.openStream()) {
-            keyStore = javaSecurityFactory.createKeyStore(keyStoreType, provider);
+            keyStore = KeyStore.getInstance(keyStoreType, provider);
             keyStore.load(inputStream, keyStorePasswordChars);
-        } catch (NoSuchAlgorithmException | CertificateException | IOException e) {
+        } catch (NoSuchAlgorithmException | CertificateException | IOException | KeyStoreException e) {
             throw new ConfigurationException(null, "failed to load the keystore", e);
         }
 
@@ -118,29 +109,18 @@ public class FileBasedKeyStoreComponent {
         keyStoreSR = context.registerService(KeyStore.class, keyStore, serviceProperties);
     }
 
-    /**
-     * Binds a {@link JavaSecurityFactory} to this component and creates the provider.
-     * 
-     * @param factory
-     *            a {@link JavaSecurityFactory} to bind
-     * @param serviceProperties
-     *            the service properties of the {@link JavaSecurityFactory}
-     */
-    public void bindJavaSecurityFactory(final JavaSecurityFactory factory,
-            final Map<String, Object> serviceProperties) {
-        javaSecurityFactory = factory;
-        javaSecurityFactoryProperties = serviceProperties;
-        provider = javaSecurityFactory.createProvider();
+    public void bindProvider(final Provider provider, final Map<String, Object> providerServiceProperties) {
+        this.provider = provider;
+        this.providerServiceProperties = providerServiceProperties;
         Security.addProvider(provider);
     }
 
     private Hashtable<String, Object> createKeyStoreServiceProperties(final Map<String, Object> componentProperties,
             final String keyStoreLocation, final String keyStoreType) {
         Hashtable<String, Object> serviceProperties = new Hashtable<>();
-        serviceProperties.putAll(javaSecurityFactoryProperties);
+        serviceProperties.putAll(providerServiceProperties);
         serviceProperties.remove(Constants.SERVICE_ID);
-        serviceProperties.put("javaSecurityFactory." + Constants.SERVICE_ID,
-                javaSecurityFactoryProperties.get(Constants.SERVICE_ID));
+        serviceProperties.put("provider." + Constants.SERVICE_ID, providerServiceProperties.get(Constants.SERVICE_ID));
         serviceProperties.put(Constants.SERVICE_PID, componentProperties.get(Constants.SERVICE_PID));
         serviceProperties.put(PropertyName.KEY_STORE_URL, keyStoreLocation);
         serviceProperties.put(PropertyName.KEY_STORE_TYPE, keyStoreType);
@@ -167,16 +147,9 @@ public class FileBasedKeyStoreComponent {
         return String.valueOf(value);
     }
 
-    /**
-     * Unbinds a {@link JavaSecurityFactory} from this component.
-     * 
-     * @param factory
-     *            a {@link JavaSecurityFactory} to unbind
-     */
-    public void unbindJavaSecurityFactory(final JavaSecurityFactory factory) {
-        javaSecurityFactory = null;
+    public void unbindProvider(final Provider provider) {
+        this.provider = null;
         Security.removeProvider(provider.getName());
-        provider = null;
     }
 
 }

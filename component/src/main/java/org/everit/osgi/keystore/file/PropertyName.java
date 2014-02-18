@@ -26,10 +26,7 @@ package org.everit.osgi.keystore.file;
  */
 public final class PropertyName {
 
-    /**
-     * The property name of the {@link org.everit.osgi.service.javasecurity.JavaSecurityFactory} OSGi service filter.
-     */
-    public static final String JAVA_SECURITY_FACTORY_TARGET = "javaSecurityFactory.target";
+    public static final String PROVIDER_TARGET = "provider.target";
     /**
      * The property name of the keystore URL.
      */
