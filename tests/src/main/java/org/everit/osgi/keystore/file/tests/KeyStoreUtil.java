@@ -42,7 +42,7 @@ public final class KeyStoreUtil {
 
     private static final Object lockObject = new Object();
 
-    public static KeyPair LAST_GENERATED_KEY_PAIR = null;
+    static KeyPair LAST_GENERATED_KEY_PAIR = null;
 
     public static void createKeyStore(final Provider provider, final String keyStoreType,
             final String keyStoreLocation, final String keyStorePassword, final String signatureAlgorithm,
