@@ -64,8 +64,6 @@ public class ConfigurationInitComponent {
 
     public static final String PUBLIC_KEY_ALIAS = "test-public-key-alias";
 
-    public static KeyPair KEY_PAIR;
-
     @Reference(bind = "bindConfigAdmin")
     private ConfigurationAdmin configAdmin;
 
@@ -81,10 +79,10 @@ public class ConfigurationInitComponent {
         keyStoreFile = File.createTempFile("test-key-store", "");
         String keyStoreLocation = keyStoreFile.getAbsolutePath();
 
-        KEY_PAIR = KeyStoreUtil.generateKeyPair(provider, "RSA", "SHA1PRNG");
+        KeyPair keyPair = KeyStoreUtil.generateKeyPair(provider, "RSA", "SHA1PRNG");
         KeyStoreUtil.createKeyStore(provider, KEY_STORE_TYPE, keyStoreLocation, KEY_STORE_PASSWORD,
-                "SHA1WITHRSA", PRIVATE_KEY_ALIAS, KEY_PAIR.getPrivate(), PRIVATE_KEY_PASSWORD, PUBLIC_KEY_ALIAS,
-                KEY_PAIR.getPublic());
+                "SHA1WITHRSA", PRIVATE_KEY_ALIAS, keyPair.getPrivate(), PRIVATE_KEY_PASSWORD, PUBLIC_KEY_ALIAS,
+                keyPair.getPublic());
 
         String keyStoreUrl = keyStoreFile.toURI().toURL().toString();
 

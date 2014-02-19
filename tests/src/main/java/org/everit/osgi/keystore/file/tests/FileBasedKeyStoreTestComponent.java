@@ -62,7 +62,7 @@ public class FileBasedKeyStoreTestComponent {
     @Test
     public void testKeyStoreInitialization() throws UnrecoverableKeyException, KeyStoreException,
             NoSuchAlgorithmException {
-        KeyPair expectedKeyPair = ConfigurationInitComponent.KEY_PAIR;
+        KeyPair expectedKeyPair = KeyStoreUtil.LAST_GENERATED_KEY_PAIR;
 
         PrivateKey privateKey = (PrivateKey) keyStore.getKey(
                 ConfigurationInitComponent.PRIVATE_KEY_ALIAS,

@@ -57,6 +57,9 @@ import org.osgi.service.cm.ConfigurationException;
 })
 public class FileBasedKeyStoreComponent {
 
+    /**
+     * The provider used to load the keystore.
+     */
     @Reference(bind = "bindProvider", unbind = "unbindProvider")
     private Provider provider;
 
@@ -108,9 +111,17 @@ public class FileBasedKeyStoreComponent {
         keyStoreSR = context.registerService(KeyStore.class, keyStore, serviceProperties);
     }
 
-    public void bindProvider(final Provider provider, final Map<String, Object> providerServiceProperties) {
-        this.provider = provider;
-        this.providerServiceProperties = providerServiceProperties;
+    /**
+     * The bind method of the {@link #provider} reference.
+     * 
+     * @param service
+     *            The binding service.
+     * @param serviceProperties
+     *            The properties of the service.
+     */
+    public void bindProvider(final Provider service, final Map<String, Object> serviceProperties) {
+        provider = service;
+        providerServiceProperties = serviceProperties;
     }
 
     private Hashtable<String, Object> createKeyStoreServiceProperties(final Map<String, Object> componentProperties,
@@ -145,8 +156,14 @@ public class FileBasedKeyStoreComponent {
         return String.valueOf(value);
     }
 
-    public void unbindProvider(final Provider provider) {
-        this.provider = null;
+    /**
+     * The unbind method of the {@link #provider} reference.
+     * 
+     * @param service
+     *            The unbinding service.
+     */
+    public void unbindProvider(final Provider service) {
+        provider = null;
     }
 
 }

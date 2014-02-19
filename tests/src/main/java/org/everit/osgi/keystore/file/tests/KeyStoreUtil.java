@@ -40,6 +40,10 @@ import org.bouncycastle.x509.X509V3CertificateGenerator;
 
 public final class KeyStoreUtil {
 
+    private static final Object lockObject = new Object();
+
+    public static KeyPair LAST_GENERATED_KEY_PAIR = null;
+
     public static void createKeyStore(final Provider provider, final String keyStoreType,
             final String keyStoreLocation, final String keyStorePassword, final String signatureAlgorithm,
             final String privateKeyAlias, final PrivateKey privateKey, final String privateKeyPassword,
@@ -82,8 +86,10 @@ public final class KeyStoreUtil {
             KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(keyPairAlgorithm, provider);
             SecureRandom secureRandom = SecureRandom.getInstance(secureAlgorithm);
             keyPairGenerator.initialize(1024, secureRandom);
-            KeyPair keyPair = keyPairGenerator.generateKeyPair();
-            return keyPair;
+            synchronized (lockObject) {
+                LAST_GENERATED_KEY_PAIR = keyPairGenerator.generateKeyPair();
+                return LAST_GENERATED_KEY_PAIR;
+            }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
