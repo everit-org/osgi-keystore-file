@@ -29,39 +29,37 @@ import java.security.KeyPairGenerator;
 import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.Provider;
+import java.security.PublicKey;
 import java.security.SecureRandom;
-import java.security.Security;
 import java.security.cert.Certificate;
 import java.util.Calendar;
 import java.util.Date;
 
 import org.bouncycastle.jce.X509Principal;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.x509.X509V3CertificateGenerator;
 
-public final class TestKeyStoreUtil {
+public final class KeyStoreUtil {
 
-    public static void createBCKeyStore(final String keyStoreType,
+    public static void createKeyStore(final Provider provider, final String keyStoreType,
             final String keyStoreLocation, final String keyStorePassword, final String signatureAlgorithm,
-            final String alias, final KeyPair keyPair, final char[] entryPassword) {
-        Provider provider = new BouncyCastleProvider();
-        Security.addProvider(provider);
+            final String privateKeyAlias, final PrivateKey privateKey, final String privateKeyPassword,
+            final String publicKeyAlias, final PublicKey publicKey) {
         try (OutputStream fos = new FileOutputStream(keyStoreLocation)) {
             KeyStore ks = KeyStore.getInstance(keyStoreType, provider);
             ks.load(null, null);
-            Certificate[] certificateChain = { TestKeyStoreUtil.generateCertificate(keyPair, signatureAlgorithm) };
-            PrivateKey privateKey = keyPair.getPrivate();
-            ks.setKeyEntry(alias, privateKey, entryPassword, certificateChain);
+            Certificate[] certificateChain = {
+                    KeyStoreUtil.generateCertificate(privateKey, publicKey, signatureAlgorithm)
+            };
+            ks.setKeyEntry(privateKeyAlias, privateKey, privateKeyPassword.toCharArray(), certificateChain);
+            ks.setCertificateEntry(publicKeyAlias, certificateChain[0]);
             ks.store(fos, keyStorePassword.toCharArray());
         } catch (Exception e) {
             throw new RuntimeException(e);
-        } finally {
-            Security.removeProvider(provider.getName());
         }
     }
 
-    private static Certificate generateCertificate(final KeyPair keyPair, final String signatureAlgorithm)
-            throws Exception {
+    private static Certificate generateCertificate(final PrivateKey privateKey, final PublicKey publicKey,
+            final String signatureAlgorithm) throws Exception {
         Calendar calendar = Calendar.getInstance();
         Date notBefore = calendar.getTime();
         calendar.add(Calendar.MINUTE, 1);
@@ -73,14 +71,13 @@ public final class TestKeyStoreUtil {
         v3CertGen.setNotBefore(notBefore);
         v3CertGen.setNotAfter(notAfter);
         v3CertGen.setSubjectDN(new X509Principal("CN=cn, O=o, L=L, ST=il, C=c"));
-        v3CertGen.setPublicKey(keyPair.getPublic());
+        v3CertGen.setPublicKey(publicKey);
         v3CertGen.setSignatureAlgorithm(signatureAlgorithm);
-        return v3CertGen.generateX509Certificate(keyPair.getPrivate());
+        return v3CertGen.generateX509Certificate(privateKey);
     }
 
-    public static KeyPair generateKeyPair(final String keyPairAlgorithm, final String secureAlgorithm) {
-        Provider provider = new BouncyCastleProvider();
-        Security.addProvider(provider);
+    public static KeyPair generateKeyPair(final Provider provider, final String keyPairAlgorithm,
+            final String secureAlgorithm) {
         try {
             KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(keyPairAlgorithm, provider);
             SecureRandom secureRandom = SecureRandom.getInstance(secureAlgorithm);
@@ -89,12 +86,10 @@ public final class TestKeyStoreUtil {
             return keyPair;
         } catch (Exception e) {
             throw new RuntimeException(e);
-        } finally {
-            Security.removeProvider(provider.getName());
         }
     }
 
-    private TestKeyStoreUtil() {
+    private KeyStoreUtil() {
     }
 
 }

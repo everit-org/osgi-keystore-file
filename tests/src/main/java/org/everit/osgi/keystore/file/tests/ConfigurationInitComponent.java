@@ -23,14 +23,18 @@ package org.everit.osgi.keystore.file.tests;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.security.KeyPair;
+import java.security.Provider;
 import java.util.Dictionary;
+import java.util.HashSet;
 import java.util.Hashtable;
-import java.util.UUID;
+import java.util.Set;
 
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
+import org.apache.felix.scr.annotations.Deactivate;
+import org.apache.felix.scr.annotations.Properties;
+import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
 import org.everit.osgi.keystore.file.FileBasedKeyStoreComponent;
@@ -42,67 +46,97 @@ import org.osgi.service.cm.Configuration;
 import org.osgi.service.cm.ConfigurationAdmin;
 
 @Component(immediate = true)
+@Properties({
+        @Property(name = "provider.target", value = "(providerName=BC)")
+})
 @Service(value = ConfigurationInitComponent.class)
 public class ConfigurationInitComponent {
 
-    private static final String PROVIDER_NAME = "BC";
-
     private static final String KEY_STORE_TYPE = "BKS";
 
-    private static final String PROVIDER_TARGET_FILTER = "(providerName=" + PROVIDER_NAME + ")";
+    private static final String PROVIDER_TARGET_FILTER = "(providerName=BC)";
 
-    public static final String ALIAS = UUID.randomUUID().toString();
+    private static final String KEY_STORE_PASSWORD = "testKeyStorePassword";
 
-    public static final char[] PRIVATE_KEY_PASSWORD = UUID.randomUUID().toString().toCharArray();
+    public static final String PRIVATE_KEY_ALIAS = "test-private-key-alias";
 
-    private static final String KEY_STORE_URL;
+    public static final String PRIVATE_KEY_PASSWORD = "testPrivateKeyPassword";
 
-    private static final String KEY_STORE_PASSWORD = UUID.randomUUID().toString();
+    public static final String PUBLIC_KEY_ALIAS = "test-public-key-alias";
 
-    public static final KeyPair KEY_PAIR;
+    public static KeyPair KEY_PAIR;
 
     @Reference(bind = "bindConfigAdmin")
     private ConfigurationAdmin configAdmin;
 
-    static {
-        KEY_PAIR = TestKeyStoreUtil.generateKeyPair("RSA", "SHA1PRNG");
-        String keyStoreLocation = "configuration/test-key-store-" + UUID.randomUUID().toString();
-        TestKeyStoreUtil.createBCKeyStore(KEY_STORE_TYPE, keyStoreLocation, KEY_STORE_PASSWORD,
-                "SHA1WITHRSA", ALIAS, KEY_PAIR, PRIVATE_KEY_PASSWORD);
-        try {
-            KEY_STORE_URL = new File(keyStoreLocation).toURI().toURL().toString();
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    @Reference(bind = "bindProvider")
+    private Provider provider;
+
+    private File keyStoreFile;
+
+    private Set<String> pids = new HashSet<>();
 
     @Activate
     public void activate(final BundleContext bundleContext) throws Exception {
-        try {
+        keyStoreFile = File.createTempFile("test-key-store", "");
+        String keyStoreLocation = keyStoreFile.getAbsolutePath();
 
-            Dictionary<String, Object> keyStoreProps = new Hashtable<String, Object>();
-            keyStoreProps.put(PropertyName.PROVIDER_TARGET, PROVIDER_TARGET_FILTER);
-            keyStoreProps.put(PropertyName.KEY_STORE_URL, KEY_STORE_URL);
-            keyStoreProps.put(PropertyName.KEY_STORE_TYPE, KEY_STORE_TYPE);
-            keyStoreProps.put(PropertyName.KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
-            String keyStorePid = getOrCreateConfiguration(FileBasedKeyStoreComponent.class.getName(), keyStoreProps);
+        KEY_PAIR = KeyStoreUtil.generateKeyPair(provider, "RSA", "SHA1PRNG");
+        KeyStoreUtil.createKeyStore(provider, KEY_STORE_TYPE, keyStoreLocation, KEY_STORE_PASSWORD,
+                "SHA1WITHRSA", PRIVATE_KEY_ALIAS, KEY_PAIR.getPrivate(), PRIVATE_KEY_PASSWORD, PUBLIC_KEY_ALIAS,
+                KEY_PAIR.getPublic());
 
-            Dictionary<String, Object> keyStoreTestProps = new Hashtable<String, Object>();
-            keyStoreTestProps.put("keyStore.target", "(" + Constants.SERVICE_PID + "=" + keyStorePid + ")");
-            getOrCreateConfiguration(FileBasedKeyStoreTestComponent.class.getName(), keyStoreTestProps);
+        String keyStoreUrl = keyStoreFile.toURI().toURL().toString();
 
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (InvalidSyntaxException e) {
-            throw new RuntimeException(e);
-        }
+        deleteConfigurations();
+
+        Dictionary<String, String> keyStoreProps = new Hashtable<>();
+        keyStoreProps.put(PropertyName.PROVIDER_TARGET, PROVIDER_TARGET_FILTER);
+        keyStoreProps.put(PropertyName.KEY_STORE_URL, keyStoreUrl);
+        keyStoreProps.put(PropertyName.KEY_STORE_TYPE, KEY_STORE_TYPE);
+        keyStoreProps.put(PropertyName.KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+        String keyStorePid = getOrCreateConfiguration(FileBasedKeyStoreComponent.class.getName(), keyStoreProps);
+
+        Dictionary<String, String> keyStoreTestProps = new Hashtable<>();
+        keyStoreTestProps.put("keyStore.target", "(" + Constants.SERVICE_PID + "=" + keyStorePid + ")");
+        String keyStoreTestPid = getOrCreateConfiguration(FileBasedKeyStoreTestComponent.class.getName(),
+                keyStoreTestProps);
+
+        pids.add(keyStorePid);
+        pids.add(keyStoreTestPid);
+
     }
 
     public void bindConfigAdmin(final ConfigurationAdmin configAdmin) {
         this.configAdmin = configAdmin;
     }
 
-    private String getOrCreateConfiguration(final String factoryPid, final Dictionary<String, Object> props)
+    public void bindProvider(final Provider provider) {
+        this.provider = provider;
+    }
+
+    @Deactivate
+    public void deactivate() throws Exception {
+        if (!keyStoreFile.delete()) {
+            keyStoreFile.deleteOnExit();
+        }
+        deleteConfigurations();
+    }
+
+    private void deleteConfigurations() throws IOException, InvalidSyntaxException {
+        for (String pid : pids) {
+            Configuration[] configurations =
+                    configAdmin.listConfigurations("(" + Constants.SERVICE_PID + "=" + pid + ")");
+            if (configurations != null) {
+                for (Configuration configuration : configurations) {
+                    configuration.delete();
+                }
+            }
+        }
+        pids.clear();
+    }
+
+    private String getOrCreateConfiguration(final String factoryPid, final Dictionary<String, String> props)
             throws IOException, InvalidSyntaxException {
         Configuration[] configurations = configAdmin.listConfigurations("(service.factoryPid=" + factoryPid + ")");
         if ((configurations != null) && (configurations.length > 0)) {

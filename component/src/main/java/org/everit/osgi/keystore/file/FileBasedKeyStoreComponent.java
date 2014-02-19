@@ -29,7 +29,6 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
-import java.security.Security;
 import java.security.cert.CertificateException;
 import java.util.Hashtable;
 import java.util.Map;
@@ -95,13 +94,13 @@ public class FileBasedKeyStoreComponent {
         try {
             url = new URL(keyStoreUrl);
         } catch (MalformedURLException e) {
-            throw new ConfigurationException(null, "failed to load the keystore", e);
+            throw new ConfigurationException(null, "failed to load the keystore from URL [" + keyStoreUrl + "]", e);
         }
         try (InputStream inputStream = url.openStream()) {
             keyStore = KeyStore.getInstance(keyStoreType, provider);
             keyStore.load(inputStream, keyStorePasswordChars);
         } catch (NoSuchAlgorithmException | CertificateException | IOException | KeyStoreException e) {
-            throw new ConfigurationException(null, "failed to load the keystore", e);
+            throw new ConfigurationException(null, "failed to load the keystore from URL [" + keyStoreUrl + "]", e);
         }
 
         Hashtable<String, Object> serviceProperties =
@@ -112,7 +111,6 @@ public class FileBasedKeyStoreComponent {
     public void bindProvider(final Provider provider, final Map<String, Object> providerServiceProperties) {
         this.provider = provider;
         this.providerServiceProperties = providerServiceProperties;
-        Security.addProvider(provider);
     }
 
     private Hashtable<String, Object> createKeyStoreServiceProperties(final Map<String, Object> componentProperties,
@@ -149,7 +147,6 @@ public class FileBasedKeyStoreComponent {
 
     public void unbindProvider(final Provider provider) {
         this.provider = null;
-        Security.removeProvider(provider.getName());
     }
 
 }

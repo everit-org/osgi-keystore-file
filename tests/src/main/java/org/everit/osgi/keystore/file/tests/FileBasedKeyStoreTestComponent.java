@@ -36,18 +36,17 @@ import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
+import org.everit.osgi.dev.testrunner.TestRunnerConstants;
 import org.junit.Assert;
 import org.junit.Test;
 
 @Component(metatype = true, policy = ConfigurationPolicy.REQUIRE)
 @Properties({
-        @Property(name = "eosgi.testEngine", value = "junit4"),
-        @Property(name = "eosgi.testId", value = "FileBasedKeyStoreTestComponent"),
+        @Property(name = TestRunnerConstants.SERVICE_PROPERTY_TESTRUNNER_ENGINE_TYPE, value = "junit4"),
+        @Property(name = TestRunnerConstants.SERVICE_PROPERTY_TEST_ID, value = "FileBasedKeyStoreTestComponent"),
         @Property(name = "keyStore.target") })
 @Service(value = FileBasedKeyStoreTestComponent.class)
 public class FileBasedKeyStoreTestComponent {
-
-    private final KeyPair expectedKeyPair = ConfigurationInitComponent.KEY_PAIR;
 
     @Reference
     private KeyStore keyStore;
@@ -63,11 +62,16 @@ public class FileBasedKeyStoreTestComponent {
     @Test
     public void testKeyStoreInitialization() throws UnrecoverableKeyException, KeyStoreException,
             NoSuchAlgorithmException {
-        PrivateKey privateKey = (PrivateKey) keyStore.getKey(ConfigurationInitComponent.ALIAS,
-                ConfigurationInitComponent.PRIVATE_KEY_PASSWORD);
+        KeyPair expectedKeyPair = ConfigurationInitComponent.KEY_PAIR;
+
+        PrivateKey privateKey = (PrivateKey) keyStore.getKey(
+                ConfigurationInitComponent.PRIVATE_KEY_ALIAS,
+                ConfigurationInitComponent.PRIVATE_KEY_PASSWORD.toCharArray());
         Assert.assertNotNull(privateKey);
         Assert.assertArrayEquals(expectedKeyPair.getPrivate().getEncoded(), privateKey.getEncoded());
-        Certificate certificate = keyStore.getCertificate(ConfigurationInitComponent.ALIAS);
+
+        Certificate certificate = keyStore.getCertificate(
+                ConfigurationInitComponent.PUBLIC_KEY_ALIAS);
         Assert.assertNotNull(certificate);
         Assert.assertArrayEquals(expectedKeyPair.getPublic().getEncoded(), certificate.getPublicKey().getEncoded());
     }

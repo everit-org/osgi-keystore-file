@@ -86,7 +86,7 @@
 							<id>${environment.id}</id>
 							<framework>equinox</framework>
 							<systemProperties>
-								<jetty.port>8080</jetty.port>
+								<jetty.port>0</jetty.port>
 								<jetty.home.bundle>org.eclipse.jetty.osgi.boot</jetty.home.bundle>
 <!-- 								<osgi.console>6667</osgi.console> -->
 							</systemProperties>
