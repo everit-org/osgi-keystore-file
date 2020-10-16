@@ -30,6 +30,7 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
 import java.security.cert.CertificateException;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Map;
 
@@ -40,6 +41,7 @@ import org.apache.felix.scr.annotations.Deactivate;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
+import org.apache.felix.scr.annotations.ReferenceCardinality;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
 import org.osgi.framework.ServiceRegistration;
@@ -60,7 +62,7 @@ public class FileBasedKeyStoreComponent {
     /**
      * The provider used to load the keystore.
      */
-    @Reference(bind = "bindProvider", unbind = "unbindProvider")
+    @Reference(bind = "bindProvider", unbind = "unbindProvider", cardinality = ReferenceCardinality.OPTIONAL_UNARY)
     private Provider provider;
 
     /**
@@ -100,7 +102,13 @@ public class FileBasedKeyStoreComponent {
             throw new ConfigurationException(null, "failed to load the keystore from URL [" + keyStoreUrl + "]", e);
         }
         try (InputStream inputStream = url.openStream()) {
-            keyStore = KeyStore.getInstance(keyStoreType, provider);
+            if (provider == null) {
+              keyStore = KeyStore.getInstance(keyStoreType);
+              providerServiceProperties = new HashMap<>();
+              providerServiceProperties.put(Constants.SERVICE_ID, keyStore.getProvider().getName() + " (default)");
+            } else {
+              keyStore = KeyStore.getInstance(keyStoreType, provider);
+            }
             keyStore.load(inputStream, keyStorePasswordChars);
         } catch (NoSuchAlgorithmException | CertificateException | IOException | KeyStoreException e) {
             throw new ConfigurationException(null, "failed to load the keystore from URL [" + keyStoreUrl + "]", e);
